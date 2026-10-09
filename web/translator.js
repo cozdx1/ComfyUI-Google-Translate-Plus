@@ -15,6 +15,23 @@ app.registerExtension({
             const sourceLanguage = find("source_language");
             const autoValue = sourceLanguage.options?.values?.find?.((value) => /\[auto\]$/.test(value));
             if (autoValue) sourceLanguage.value = autoValue;
+            for (const name of ["source_language", "target_language"]) {
+                const widget = find(name), originalClick = widget.onClick;
+                if (typeof originalClick !== "function") continue;
+                widget.onClick = function (context) {
+                    const {e, node, canvas} = context;
+                    const x = e.canvasX - node.pos[0], width = this.width || node.size[0];
+                    const ContextMenu = globalThis.LiteGraph?.ContextMenu;
+                    if (x < 40 || x > width - 40 || !ContextMenu) return originalClick.call(this, context);
+                    const choices = this.options.values.map((value) => ({content: languageLabel(value, app), value}));
+                    // Provide all entries at construction so ComfyUI's native
+                    // ContextMenuFilter adds its search field and keyboard controls.
+                    return new ContextMenu(choices, {
+                        event: e, className: "dark", scale: Math.max(1, canvas.ds.scale),
+                        callback: (choice) => this.setValue(choice.value, context),
+                    });
+                };
+            }
             const watched = ["text", "source_language", "target_language", "protection"];
             const snapshot = () => Object.fromEntries(watched.map((name) => [name, find(name).value]));
             let observedInput = JSON.stringify(snapshot());

@@ -7,6 +7,7 @@ let requestCount = 0;
 let resolveRequest;
 let response;
 let uiLocale = 'en';
+let openedMenu;
 const settingListeners = new Map();
 const context = {
     app: {registerExtension: (value) => { extension = value; }, extensionManager: {toast: {add: () => {}}}, ui: {settings: {
@@ -16,6 +17,7 @@ const context = {
     }}},
     api: {fetchApi: () => { requestCount++; return response || new Promise((resolve) => { resolveRequest = resolve; }); }},
     console: {warn: () => {}},
+    LiteGraph: {ContextMenu: class {constructor(values, options) {openedMenu = {values, options};}}},
 };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/i18n.js'), 'utf8').replace(/^export /gm, ''), context);
@@ -29,6 +31,8 @@ class Node {
                 ...(name === 'source_language' ? ['자동 감지 [auto]'] : []),
                 '갈리시아어 [gl]', '광둥어 [yue]', '덴마크어 [da]', '독일어 [de]', '한국어 [ko]',
             ]} : {},
+            onClick() { this.defaultClick = true; },
+            setValue(value) { this.value = value; this.callback?.(value); },
         }));
     }
     addWidget(type, name, value, callback, options) {
@@ -53,6 +57,19 @@ class Node {
     assert.deepEqual(Array.from(widget('source_language').options.values, (value) => widget('source_language').options.getOptionLabel(value)),
         ['Auto-detect [auto]', 'Cantonese [yue]', 'Danish [da]', 'Galician [gl]', 'German [de]', 'Korean [ko]'],
         'language menus must sort by displayed names, not underlying Korean labels');
+    const clickContext = {e: {canvasX: 250}, node: {pos: [0, 0], size: [500, 560]}, canvas: {ds: {scale: 1}}};
+    for (const name of ['source_language', 'target_language']) {
+        widget(name).onClick(clickContext);
+        assert.equal(openedMenu.options.className, 'dark');
+        assert.ok(openedMenu.values.length > 4, 'native filtering needs the full menu at construction');
+        assert.ok(openedMenu.values.some((choice) => choice.content === 'Korean [ko]'));
+        const savedValue = widget(name).value;
+        openedMenu.options.callback(openedMenu.values.find((choice) => choice.value === '한국어 [ko]'));
+        assert.equal(widget(name).value, '한국어 [ko]', 'filtered selections keep backend language values');
+        widget(name).value = savedValue;
+        widget(name).onClick({...clickContext, e: {canvasX: 20}});
+        assert.equal(widget(name).defaultClick, true, 'arrow buttons keep the native combo behavior');
+    }
     assert.ok(output.inputEl.placeholder.endsWith('.'));
     assert.equal(state.type, 'hidden');
     assert.equal(button.options.serialize, false);
