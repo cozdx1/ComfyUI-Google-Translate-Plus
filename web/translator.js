@@ -102,7 +102,16 @@ app.registerExtension({
                     if (widget.inputEl) widget.inputEl.title = strings()[key];
                 }
                 for (const name of ["source_language", "target_language"]) {
-                    find(name).options.getOptionLabel = (value) => languageLabel(value, app);
+                    const widget = find(name);
+                    widget.options.getOptionLabel = (value) => languageLabel(value, app);
+                    if (Array.isArray(widget.options.values)) {
+                        const collator = new Intl.Collator(locale(app), {sensitivity: "base"});
+                        widget.options.values = [...widget.options.values].sort((a, b) => {
+                            const autoA = /\[auto\]$/.test(a), autoB = /\[auto\]$/.test(b);
+                            if (autoA !== autoB) return autoA ? -1 : 1;
+                            return collator.compare(languageLabel(a, app), languageLabel(b, app));
+                        });
+                    }
                 }
                 this.setDirtyCanvas(true, true);
             };

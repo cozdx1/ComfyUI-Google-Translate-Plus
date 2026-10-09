@@ -25,7 +25,10 @@ class Node {
     constructor() {
         this.widgets = ['source_language', 'target_language', 'protection', 'text', 'translated_text', 'translation_state'].map((name) => ({
             name, value: name === 'text' ? 'original' : '', inputEl: name === 'translated_text' ? {setAttribute: () => {}} : undefined,
-            options: name === 'source_language' ? {values:['자동 감지 [auto]', '한국어 [ko]']} : {},
+            options: ['source_language', 'target_language'].includes(name) ? {values:[
+                ...(name === 'source_language' ? ['자동 감지 [auto]'] : []),
+                '갈리시아어 [gl]', '광둥어 [yue]', '덴마크어 [da]', '독일어 [de]', '한국어 [ko]',
+            ]} : {},
         }));
     }
     addWidget(type, name, value, callback, options) {
@@ -47,6 +50,9 @@ class Node {
     assert.equal(widget('source_language').value, '자동 감지 [auto]', 'new nodes default to auto-detect');
     assert.equal(widget('source_language').options.getOptionLabel('자동 감지 [auto]'), 'Auto-detect [auto]');
     assert.equal(widget('target_language').options.getOptionLabel('영어 [en]'), 'English [en]');
+    assert.deepEqual(Array.from(widget('source_language').options.values, (value) => widget('source_language').options.getOptionLabel(value)),
+        ['Auto-detect [auto]', 'Cantonese [yue]', 'Danish [da]', 'Galician [gl]', 'German [de]', 'Korean [ko]'],
+        'language menus must sort by displayed names, not underlying Korean labels');
     assert.ok(output.inputEl.placeholder.endsWith('.'));
     assert.equal(state.type, 'hidden');
     assert.equal(button.options.serialize, false);
@@ -93,6 +99,14 @@ class Node {
     for (const language of ['ko', 'ja', 'zh-CN', 'en', 'fr']) {
         uiLocale = language;
         settingListeners.get('Comfy.Locale.change')();
+        for (const name of ['source_language', 'target_language']) {
+            const values = widget(name).options.values.filter((value) => !value.endsWith('[auto]'));
+            const collator = new Intl.Collator(['ko', 'ja', 'zh-CN', 'en'].includes(language) ? language : 'en', {sensitivity: 'base'});
+            for (let index = 1; index < values.length; index++) {
+                assert.ok(collator.compare(widget(name).options.getOptionLabel(values[index - 1]), widget(name).options.getOptionLabel(values[index])) <= 0,
+                    'changing the UI locale must sort menus by the new displayed names');
+            }
+        }
         const translated = output.inputEl.placeholder;
         assert.ok(translated.endsWith('.') || translated.endsWith('。'), 'localized hints must end with punctuation');
         if (language === 'ko') assert.ok(translated.includes('번역 결과'));

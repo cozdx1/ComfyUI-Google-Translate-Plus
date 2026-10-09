@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-google-translate-plus"
-version = "1.0.0"
+version = "1.0.1"
 description = "Google translation for ComfyUI with preserved quotes, backticks, and inline previews."
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
