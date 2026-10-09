@@ -30,6 +30,8 @@ The default **Quotes + backticks** mode preserves these sections, including the 
 
 Use double quotes for dialogue and backticks for other phrases you want to keep. Single quotation marks do not exclude text from translation.
 
+Text inside `(...)` is translated even within protected quotes. For example, `"안녕 (웃으며)"` becomes `"안녕 (smiling)"`. Backticks preserve the entire enclosed text, including parentheses.
+
 ### Try it
 
 Paste this text with **Auto-detect → English** and **Quotes + backticks**:

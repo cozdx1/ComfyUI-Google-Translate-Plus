@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -29,6 +30,37 @@ class ProtectionTests(unittest.TestCase):
         spans = translator.protected_spans(text, translator.MODES[0])
         self.assertEqual(len(spans), 2)
         self.assertEqual(spans[0][2], '```한글\n"안녕"```')
+
+    def test_quoted_parentheses_translate_without_changing_dialogue(self):
+        for opening, closing in [('"', '"'), ('“', '”'), ('「', '」'), ('『', '』')]:
+            text = opening + '그래서, (잠시 멈추고) 오늘은 뭐 할 건데? 룰?' + closing
+            seen = []
+            def transport(value, source, target):
+                seen.append(value)
+                return value.replace('잠시 멈추고', 'pauses briefly')
+            result = translator.translate(text, 'ko', 'en', transport=transport)
+            self.assertEqual(result, text.replace('잠시 멈추고', 'pauses briefly'))
+            self.assertIn('잠시 멈추고', seen[0])
+            self.assertNotIn('오늘은 뭐 할 건데?', seen[0])
+
+    def test_multiple_nested_and_escaped_parentheses(self):
+        text = r'"안녕 (작게 (웃으며)) 그리고 (손을 흔들며) 끝 \(그대로\) () (닫히지 않음"'
+        result = translator.translate(text, 'ko', 'en', transport=lambda value, *_: value.replace('작게 (웃으며)', 'quietly (smiling)').replace('손을 흔들며', 'waving'))
+        self.assertEqual(result, text.replace('작게 (웃으며)', 'quietly (smiling)').replace('손을 흔들며', 'waving'))
+
+    def test_backticks_keep_parentheses_literal(self):
+        text = '"대사 `문구 (그대로)` (웃으며 `이름`) 끝" ```대사 (그대로)```'
+        result = translator.translate(text, 'ko', 'en', transport=lambda value, *_: value.replace('웃으며', 'smiling').replace('그대로', 'changed').replace('이름', 'changed'))
+        self.assertEqual(result, text.replace('웃으며', 'smiling'))
+        literal = '`대사 (그대로)`'
+        self.assertEqual(translator.translate(literal, 'ko', 'en', transport=lambda *_: self.fail('Network called')), literal)
+
+    def test_parentheses_exception_respects_modes(self):
+        text = '"대사 (웃으며)"'
+        for mode in ['Quotes + backticks', 'Quotes only']:
+            self.assertEqual(translator.translate(text, 'ko', 'en', mode, transport=lambda value, *_: value.replace('대사', 'Speech').replace('웃으며', 'smiling')), '"대사 (smiling)"')
+        for mode in ['Backticks only', 'None']:
+            self.assertEqual(translator.translate(text, 'ko', 'en', mode, transport=lambda value, *_: value.replace('대사', 'Speech').replace('웃으며', 'smiling')), '"Speech (smiling)"')
 
     def test_lost_or_duplicated_marker_rejected(self):
         for transform in [lambda text: '', lambda text: text + text]:
@@ -108,6 +140,18 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(module.translator, 'google_translate', side_effect=lambda value, source, target: value.replace('말한다', 'She says')):
             result = await module.GoogleTranslatePlus().output_translation(module._auto, module._defaults['en'], 'Quotes + backticks', '말한다 "좋은 아침"', '', '')
             self.assertEqual(result['result'], ('She says "좋은 아침"',))
+
+    async def test_queue_refreshes_preview_saved_before_parentheses_change(self):
+        module = self.module
+        text = '"안녕 (웃으며)"'
+        def old_signature(value, source, target, protection):
+            return hashlib.sha256(json.dumps([value, source, target, protection], ensure_ascii=False).encode('utf-8')).hexdigest()
+        state = json.dumps({'input': old_signature(text, 'ko', 'en', 'Quotes + backticks'),
+                            'output': old_signature(text, '', '', '')})
+        with patch.object(module, 'translate', return_value='"안녕 (smiling)"') as network:
+            result = await module.GoogleTranslatePlus().output_translation(module._defaults['ko'], module._defaults['en'], 'Quotes + backticks', text, text, state)
+            self.assertEqual(network.call_count, 1)
+            self.assertEqual(result['result'], ('"안녕 (smiling)"',))
 
 
 if __name__ == '__main__':

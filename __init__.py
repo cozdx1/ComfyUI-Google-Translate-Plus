@@ -23,7 +23,7 @@ class GoogleTranslatePlus:
         return {"required": {
             "source_language": (_source_labels, {"default": _auto, "tooltip": "Language of the source text. Auto-detect identifies it automatically."}),
             "target_language": (_labels, {"default": _defaults["en"], "tooltip": "Language to translate the source text into."}),
-            "protection": (MODES, {"default": MODES[0], "tooltip": "Keep text inside double quotes and/or backticks unchanged, including the delimiters."}),
+            "protection": (MODES, {"default": MODES[0], "tooltip": "Preserve quotes and backticks. Text inside parentheses in quotes is translated."}),
             "text": ("STRING", {"multiline": True, "default": "", "tooltip": "Enter the source text. Queue translates automatically; Translate previews the result before running."}),
             "translated_text": ("STRING", {"multiline": True, "default": "", "tooltip": "Read-only translation result."}),
             "translation_state": ("STRING", {"default": ""}),
