@@ -25,8 +25,8 @@ const source = fs.readFileSync(path.join(__dirname, '../web/translator.js'), 'ut
 vm.runInContext(source, context);
 class Node {
     constructor() {
-        this.widgets = ['source_language', 'target_language', 'protection', 'text', 'translated_text', 'translation_state'].map((name) => ({
-            name, value: name === 'text' ? 'original' : '', inputEl: name === 'translated_text' ? {setAttribute: () => {}} : undefined,
+        this.widgets = ['source_language', 'target_language', 'protection', 'text', 'translated_text', 'translation_state', 'backend'].map((name) => ({
+            name, value: name === 'text' ? 'original' : name === 'backend' ? 'Google' : '', inputEl: name === 'translated_text' ? {setAttribute: () => {}} : undefined,
             options: ['source_language', 'target_language'].includes(name) ? {values:[
                 ...(name === 'source_language' ? ['자동 감지 [auto]'] : []),
                 '갈리시아어 [gl]', '광둥어 [yue]', '덴마크어 [da]', '독일어 [de]', '한국어 [ko]',
@@ -116,7 +116,7 @@ class Node {
     uiLocale = 'en';
     node.onConfigure();
     assert.equal(output.inputEl.readOnly, true);
-    const queueSnapshot = Object.fromEntries(['text', 'source_language', 'target_language', 'protection'].map((name) => [name, widget(name).value]));
+    const queueSnapshot = Object.fromEntries(['text', 'source_language', 'target_language', 'protection', 'backend'].map((name) => [name, widget(name).value]));
     node.onExecuted({input_snapshot: [queueSnapshot], translated_text: ['Queue result'], translation_state: ['queue-state']});
     assert.equal(output.value, 'Queue result', 'Queue result must appear in the inline preview');
     assert.equal(state.value, 'queue-state', 'Queue result must be saved with the workflow');
@@ -127,6 +127,16 @@ class Node {
     node.onExecuted({input_snapshot: [queueSnapshot], translated_text: ['Late Queue result'], translation_state: ['stale-state']});
     assert.equal(output.value, 'Queue result', 'late Queue results must not overwrite newer input');
     assert.equal(state.value, '', 'late Queue results must not validate newer input');
+    state.value = 'google-preview';
+    widget('backend').value = 'Local OPUS-MT (CPU)';
+    widget('backend').callback();
+    assert.equal(state.value, '', 'switching translation engines invalidates the saved preview');
+    response = {ok: true, json: async () => ({text: 'local translation', state: 'local-state'})};
+    await button.callback();
+    assert.equal(output.value, 'local translation');
+    const localSnapshot = Object.fromEntries(['text', 'source_language', 'target_language', 'protection', 'backend'].map((name) => [name, widget(name).value]));
+    node.onExecuted({input_snapshot: [localSnapshot], translated_text: ['Local Queue result'], translation_state: ['local-queue-state']});
+    assert.equal(output.value, 'Local Queue result');
     for (const language of ['ko', 'ja', 'zh-CN', 'en', 'fr']) {
         uiLocale = language;
         settingListeners.get('Comfy.Locale.change')();

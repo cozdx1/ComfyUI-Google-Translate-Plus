@@ -1,5 +1,9 @@
 export const messages = {
     en: {
+        backend: "Translation engine. Local OPUS-MT uses CPU only and supports Korean to English.",
+        local_language: "Local OPUS-MT supports Korean to English only. Select Korean or Auto-detect → English.",
+        local_setup: "The local CPU model or its dependencies are missing. Check the local installation.",
+        local_output: "The local model could not complete the translation. Split the text into shorter sentences.",
         limited: "Translate · Rate limited", rate_limit: "Google Translate temporarily rejected the request (HTTP 429). Wait before trying again; the reset time is unknown.",
         translate: "Translate", busy: "Translating…", done: "Translate · Done", changed: "Translate · Changed", error: "Translate · Error (retry)",
         placeholder: "Translation result. Queue translates automatically; Translate previews it.",
@@ -13,6 +17,10 @@ export const messages = {
         marker: "Google changed a protected-text marker. The result was rejected. Try again.", response: "Google returned an invalid or empty translation. Try again.", connection: "Could not connect to Google Translate. Try again later.",
     },
     ko: {
+        backend: "번역 엔진입니다. Local OPUS-MT는 CPU로 한국어→영어를 번역합니다.",
+        local_language: "로컬 모델은 한국어→영어만 지원합니다. 한국어 또는 자동 감지 → 영어로 선택해 주세요.",
+        local_setup: "로컬 CPU 모델 또는 실행 라이브러리가 없습니다. 설치 상태를 확인해 주세요.",
+        local_output: "로컬 모델이 번역을 완료하지 못했습니다. 문장을 짧게 나누어 주세요.",
         limited: "번역 · 요청 제한", rate_limit: "구글 번역이 일시적으로 요청을 거절했습니다(HTTP 429). 잠시 기다린 후 다시 시도해 주세요. 제한 해제 시간은 알 수 없습니다.",
         translate: "번역", busy: "번역 중…", done: "번역 · 완료", changed: "번역 · 변경됨", error: "번역 · 오류 (재시도)",
         placeholder: "번역 결과입니다. Queue에서 자동 번역하며, 번역 버튼으로 미리 확인할 수 있습니다.",
@@ -26,6 +34,10 @@ export const messages = {
         marker: "구글 번역이 보존 표시를 변경하여 결과를 적용하지 않았습니다. 다시 시도해 주세요.", response: "구글 번역에서 올바른 결과를 반환하지 않았습니다. 다시 시도해 주세요.", connection: "구글 번역에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
     },
     ja: {
+        backend: "翻訳エンジンです。Local OPUS-MTはCPUで韓国語から英語に翻訳します。",
+        local_language: "ローカルモデルは韓国語から英語のみ対応しています。韓国語または自動検出 → 英語を選択してください。",
+        local_setup: "ローカルCPUモデルまたはライブラリがありません。インストールを確認してください。",
+        local_output: "ローカルモデルが翻訳を完了できませんでした。短い文に分割してください。",
         limited: "翻訳 · リクエスト制限", rate_limit: "Google翻訳が一時的にリクエストを拒否しました（HTTP 429）。しばらく待ってから再試行してください。制限の解除時刻は不明です。",
         translate: "翻訳", busy: "翻訳中…", done: "翻訳 · 完了", changed: "翻訳 · 変更あり", error: "翻訳 · エラー（再試行）",
         placeholder: "翻訳結果です。Queueで自動翻訳し、翻訳ボタンでプレビューできます。",
@@ -39,6 +51,10 @@ export const messages = {
         marker: "保護用の印が変更されたため結果を適用しませんでした。再試行してください。", response: "正しい翻訳結果が返されませんでした。再試行してください。", connection: "Google翻訳に接続できませんでした。後でもう一度お試しください。",
     },
     zh: {
+        backend: "翻译引擎。Local OPUS-MT仅使用CPU将韩语翻译为英语。",
+        local_language: "本地模型仅支持韩语到英语。请选择韩语或自动检测 → 英语。",
+        local_setup: "缺少本地CPU模型或依赖库。请检查安装。",
+        local_output: "本地模型未能完成翻译。请将文本拆分成较短的句子。",
         limited: "翻译 · 请求受限", rate_limit: "Google翻译暂时拒绝了请求（HTTP 429）。请等待一段时间后重试。限制解除时间未知。",
         translate: "翻译", busy: "翻译中…", done: "翻译 · 完成", changed: "翻译 · 已更改", error: "翻译 · 错误（重试）",
         placeholder: "翻译结果。Queue自动翻译，翻译按钮用于预览。",

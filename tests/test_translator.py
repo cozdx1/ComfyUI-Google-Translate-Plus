@@ -169,6 +169,31 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result['result'], ('Hello',))
             self.assertEqual(result['ui']['translated_text'], ['Hello'])
 
+    async def test_local_queue_invalidates_google_preview(self):
+        module = self.module
+        state = json.dumps({'input': module.signature('안녕', 'ko', 'en', 'Quotes + backticks'),
+                            'output': module.signature('Google', '', '', '')})
+        args = [module._defaults['ko'], module._defaults['en'], 'Quotes + backticks', '안녕', 'Google', state]
+        with patch.object(module, 'translate', return_value='Local') as translate:
+            result = await module.GoogleTranslatePlus().output_translation(*args, backend='Local OPUS-MT (CPU)')
+            translate.assert_called_once_with('안녕', 'ko', 'en', 'Quotes + backticks', backend='Local OPUS-MT (CPU)')
+        saved = result['ui']['translation_state'][0]
+        with patch.object(module, 'translate', side_effect=AssertionError('Preview should be reused')):
+            result = await module.GoogleTranslatePlus().output_translation(*args[:4], 'Local', saved, backend='Local OPUS-MT (CPU)')
+        self.assertEqual(result['result'], ('Local',))
+        self.assertEqual(result['ui']['input_snapshot'][0]['backend'], 'Local OPUS-MT (CPU)')
+
+    async def test_manual_preview_uses_selected_local_engine(self):
+        module = self.module
+        class Request:
+            async def json(self):
+                return dict(text='안녕', source_language=module._auto, target_language=module._defaults['en'], protection='Quotes + backticks', backend='Local OPUS-MT (CPU)')
+        with patch.object(module, 'translate', return_value='Local') as translate:
+            response = await module.translate_manual(Request())
+            translate.assert_called_once_with('안녕', 'auto', 'en', 'Quotes + backticks', backend='Local OPUS-MT (CPU)')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(json.loads(response.text)['text'], 'Local')
+
     async def test_rate_limit_is_clear_for_preview_and_queue(self):
         module = self.module
         error = module.translator.TranslationError('rate_limit', 'Google Translate rejected the request (HTTP 429).')

@@ -1,4 +1,4 @@
-"""Google web translation with fail-closed literal protection. No ML dependencies."""
+"""Google or optional offline translation with literal protection."""
 import hashlib
 import json
 import re
@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 MODES = ["Quotes + backticks", "Quotes only", "Backticks only", "None"]
+BACKENDS = ["Google", "Local OPUS-MT (CPU)"]
 _cache = OrderedDict()
 _lock = threading.Lock()
 _inflight = {}
@@ -22,9 +23,11 @@ class TranslationError(ValueError):
         super().__init__(message)
 
 
-def signature(text, source, target, protection):
+def signature(text, source, target, protection, backend="Google"):
     # Invalidate previews saved before quoted parentheses became translatable.
     payload = json.dumps(["quoted-parentheses-v1", text, source, target, protection], ensure_ascii=False)
+    if backend != "Google":
+        payload += json.dumps(["local-spans-v1", backend])
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -119,10 +122,12 @@ def google_translate(text, source, target):
     return result
 
 
-def translate(text, source, target, protection=MODES[0], transport=None):
+def translate(text, source, target, protection=MODES[0], transport=None, backend="Google"):
+    if backend not in BACKENDS:
+        raise TranslationError("backend", "Unknown translation engine.")
     if transport is not None:
         return _translate(text, source, target, protection, transport)
-    key = signature(text, source, target, protection)
+    key = signature(text, source, target, protection, backend)
     with _lock:
         if key in _cache:
             _cache.move_to_end(key)
@@ -135,7 +140,11 @@ def translate(text, source, target, protection=MODES[0], transport=None):
     if not owner:
         return pending.result()
     try:
-        result = _translate(text, source, target, protection, google_translate)
+        if backend == BACKENDS[1]:
+            from .local_translation import translate_local
+            result = translate_local(text, source, target, protection)
+        else:
+            result = _translate(text, source, target, protection, google_translate)
         with _lock:
             _cache[key] = result
             _cache.move_to_end(key)

@@ -2,7 +2,7 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-Google翻訳でプロンプトを翻訳しながら、台詞や指定した文章をそのまま保持します。原文は編集可能で、直下に読み取り専用の翻訳結果が表示されます。
+Google翻訳またはローカルCPUモデルでプロンプトを翻訳しながら、台詞や指定した文章をそのまま保持します。原文は編集可能で、直下に読み取り専用の翻訳結果が表示されます。
 
 ノードメニューで `cozdx1` を検索し、**[cozdx1] Google Translate Plus** を追加します。
 
@@ -65,8 +65,8 @@ The sign in the background reads `오늘도 좋은 하루`.
 - UIはComfyUIの言語設定に従います。英語・中国語・日本語・韓国語に対応しています。
 - 結果はワークフローと一緒に保存されます。
 - 1回の翻訳は最大5,000文字です。
-- モデルのインストールやAPIキーは不要で、VRAMを使用しません。
-- インターネット接続が必要です。
+- GoogleはモデルやAPIキーが不要で、インターネット接続が必要です。
+- Local OPUS-MTは一度インストールするとCPUでオフライン翻訳できます。どちらもVRAMを使用しません。
 
 ## インストール
 
@@ -77,6 +77,29 @@ git clone https://github.com/cozdx1/ComfyUI-Google-Translate-Plus.git
 ```
 
 ComfyUIを再起動し、ブラウザーを更新します。手動インストールの更新は、インストール先で `git pull` を実行してから再起動・更新してください。
+
+## ローカルCPU翻訳
+
+`backend`で **Local OPUS-MT (CPU)** を選択すると、**韓国語 → 英語**をローカルで翻訳します。韓国語の入力には自動検出も使用でき、英語はそのまま保持します。
+
+- CPU INT8で実行し、VRAM・APIキー・クレジット・外部翻訳リクエストは使用しません。
+- 引用符とバッククォートを保持し、引用符内の括弧の内容は翻訳します。
+- 初期エンジンはGoogleです。ローカルモードは韓国語 → 英語のみ対応します。
+
+ComfyUIのPythonを使い、**ComfyUIフォルダー**で実行します。
+
+```sh
+python -m pip install "ctranslate2>=4.6,<5" "sentencepiece>=0.2,<1"
+python custom_nodes/ComfyUI-Google-Translate-Plus/install_local_model.py --models-dir models
+```
+
+Windowsポータブルでは、`python`を`..\python_embeded\python.exe`に置き換えます。
+
+原本約777MBをダウンロードし、チェックサムを検証して約222MBのINT8モデルに変換します。保存先は`models/translation/opus-mt-tc-big-ko-en-int8`です。既存のモデルは保持します。設定後にComfyUIを再起動し、ブラウザーを更新してください。
+
+短い指示に適しています。長い文章では主語や細部が省略される場合があります。保護された文章の前後は別々に翻訳するため、表現が変わる場合があります。
+
+モデル：[Helsinki-NLP OPUS-MT 韓国語 → 英語](https://huggingface.co/Helsinki-NLP/opus-mt-tc-big-ko-en)、**CC-BY-4.0**。原本のMarianモデルと個別の原文・翻訳先語彙を使用します。
 
 ## 開発
 

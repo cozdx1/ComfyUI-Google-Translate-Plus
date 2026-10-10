@@ -6,7 +6,7 @@ from pathlib import Path
 from aiohttp import web
 from server import PromptServer
 
-from .translator import MODES, signature, translate
+from .translator import BACKENDS, MODES, signature, translate
 
 _languages = json.loads((Path(__file__).parent / "languages.json").read_text(encoding="utf-8"))
 _codes = {f"{name} [{code}]": code for code, name in _languages["target"].items()}
@@ -27,17 +27,19 @@ class GoogleTranslatePlus:
             "text": ("STRING", {"multiline": True, "default": "", "tooltip": "Enter the source text. Queue translates automatically; Translate previews the result before running."}),
             "translated_text": ("STRING", {"multiline": True, "default": "", "tooltip": "Read-only translation result."}),
             "translation_state": ("STRING", {"default": ""}),
+        }, "optional": {
+            "backend": (BACKENDS, {"default": "Google", "tooltip": "Translation engine. Local OPUS-MT uses CPU only and supports Korean to English."}),
         }}
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("translated_text",)
     FUNCTION = "output_translation"
     CATEGORY = "cozdx1/translation"
-    DESCRIPTION = "Translate prompts with Google on Queue. Use Translate to preview the result. Preserve quoted text and backticks."
+    DESCRIPTION = "Translate prompts with Google or local OPUS-MT on Queue. Use Translate to preview the result. Preserve quoted text and backticks."
 
     async def output_translation(self, source_language, target_language, protection, text,
-                           translated_text, translation_state):
-        expected = signature(text, _source_codes[source_language], _codes[target_language], protection)
+                           translated_text, translation_state, backend="Google"):
+        expected = signature(text, _source_codes[source_language], _codes[target_language], protection, backend)
         try:
             state = json.loads(translation_state)
         except (ValueError, TypeError):
@@ -47,12 +49,13 @@ class GoogleTranslatePlus:
         if state.get("input") == expected and state.get("output") == signature(translated_text, "", "", ""):
             result = translated_text
         else:
-            result = await asyncio.to_thread(translate, text, _source_codes[source_language], _codes[target_language], protection)
+            result = await asyncio.to_thread(translate, text, _source_codes[source_language], _codes[target_language], protection,
+                                           **({"backend": backend} if backend != "Google" else {}))
         saved_state = json.dumps({"input": expected, "output": signature(result, "", "", "")})
         return {"ui": {
             "translated_text": [result], "translation_state": [saved_state],
             "input_snapshot": [{"text": text, "source_language": source_language,
-                                "target_language": target_language, "protection": protection}],
+                                "target_language": target_language, "protection": protection, "backend": backend}],
         }, "result": (result,)}
 
 
@@ -66,8 +69,10 @@ async def translate_manual(request):
         source = _source_codes[data["source_language"]]
         target = _codes[data["target_language"]]
         protection = data["protection"]
-        result = await asyncio.to_thread(translate, text, source, target, protection)
-        state = json.dumps({"input": signature(text, source, target, protection),
+        backend = data.get("backend", "Google")
+        result = await asyncio.to_thread(translate, text, source, target, protection,
+                                       **({"backend": backend} if backend != "Google" else {}))
+        state = json.dumps({"input": signature(text, source, target, protection, backend),
                             "output": signature(result, "", "", "")})
         return web.json_response({"text": result, "state": state})
     except (KeyError, ValueError, TypeError) as error:

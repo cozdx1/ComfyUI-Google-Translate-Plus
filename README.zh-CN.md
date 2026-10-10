@@ -2,7 +2,7 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-使用Google翻译翻译提示词，同时保留对白和指定短语。原文可编辑，翻译结果直接显示在下方的只读文本框中。
+使用Google翻译或本地CPU模型翻译提示词，同时保留对白和指定短语。原文可编辑，翻译结果直接显示在下方的只读文本框中。
 
 在节点菜单搜索 `cozdx1`，添加 **[cozdx1] Google Translate Plus**。
 
@@ -65,8 +65,8 @@ The sign in the background reads `오늘도 좋은 하루`.
 - UI跟随ComfyUI语言设置，支持英语、中文、日语和韩语。
 - 翻译结果随工作流保存。
 - 每次最多翻译5,000个字符。
-- 无需安装模型或API密钥，不使用VRAM。
-- 需要互联网连接。
+- Google无需安装模型或API密钥，但需要互联网连接。
+- Local OPUS-MT安装一次后即可在CPU上离线翻译。两种引擎均不占用VRAM。
 
 ## 安装
 
@@ -77,6 +77,29 @@ git clone https://github.com/cozdx1/ComfyUI-Google-Translate-Plus.git
 ```
 
 重启ComfyUI并刷新浏览器。手动安装的更新方式是在安装目录运行 `git pull`，然后重启并刷新。
+
+## 本地CPU翻译
+
+在`backend`中选择 **Local OPUS-MT (CPU)**，即可在本地进行**韩语 → 英语**翻译。韩语输入也可选择自动检测，英语文本保持不变。
+
+- 使用CPU INT8，不占用VRAM，无需API密钥、积分或外部翻译请求。
+- 保留引号和反引号，引号内括号的内容仍会翻译。
+- 默认引擎为Google。本地模式仅支持韩语 → 英语。
+
+使用ComfyUI的Python，在 **ComfyUI文件夹**中运行：
+
+```sh
+python -m pip install "ctranslate2>=4.6,<5" "sentencepiece>=0.2,<1"
+python custom_nodes/ComfyUI-Google-Translate-Plus/install_local_model.py --models-dir models
+```
+
+Windows便携版请将`python`替换为`..\python_embeded\python.exe`。
+
+安装工具下载约777MB的原始模型，验证校验和后转换为约222MB的INT8模型。保存位置为`models/translation/opus-mt-tc-big-ko-en-int8`。已安装的模型会保留。安装后重启ComfyUI并刷新浏览器。
+
+适合简短指令。较长的句子可能遗漏主语或细节。保护文本前后会分别翻译，可能影响措辞。
+
+模型：[Helsinki-NLP OPUS-MT 韩语 → 英语](https://huggingface.co/Helsinki-NLP/opus-mt-tc-big-ko-en)，**CC-BY-4.0**。使用原始Marian权重及独立的源语言和目标语言词表。
 
 ## 开发
 

@@ -1,10 +1,13 @@
 [project]
 name = "comfyui-google-translate-plus"
-version = "1.0.4"
-description = "Google translation for ComfyUI with preserved quotes, backticks, and inline previews."
+version = "1.1.0"
+description = "Google or offline CPU translation for ComfyUI with preserved quotes, backticks, and inline previews."
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 dependencies = []
+
+[project.optional-dependencies]
+local = ["ctranslate2>=4.6,<5", "sentencepiece>=0.2,<1"]
 
 [project.urls]
 Repository = "https://github.com/cozdx1/ComfyUI-Google-Translate-Plus"

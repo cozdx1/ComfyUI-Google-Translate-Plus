@@ -32,7 +32,7 @@ app.registerExtension({
                     });
                 };
             }
-            const watched = ["text", "source_language", "target_language", "protection"];
+            const watched = ["text", "source_language", "target_language", "protection", "backend"].filter((name) => find(name));
             const snapshot = () => Object.fromEntries(watched.map((name) => [name, find(name).value]));
             let observedInput = JSON.stringify(snapshot());
             let status = "translate";
@@ -122,6 +122,12 @@ app.registerExtension({
                     widget.tooltip = strings()[key];
                     if (widget.inputEl) widget.inputEl.title = strings()[key];
                 }
+                const backend = find("backend");
+                if (backend) {
+                    backend.options ??= {};
+                    backend.options.tooltip = strings().backend;
+                    backend.tooltip = strings().backend;
+                }
                 for (const name of ["source_language", "target_language"]) {
                     const widget = find(name);
                     widget.options.getOptionLabel = (value) => languageLabel(value, app);
@@ -141,7 +147,8 @@ app.registerExtension({
             this.onExecuted = function (data) {
                 const previousResult = executed?.apply(this, arguments);
                 const input = data?.input_snapshot?.[0];
-                if (input && JSON.stringify(input) === JSON.stringify(snapshot()) && typeof data.translated_text?.[0] === "string") {
+                const comparable = input && Object.fromEntries(watched.map((name) => [name, input[name]]));
+                if (input && JSON.stringify(comparable) === JSON.stringify(snapshot()) && typeof data.translated_text?.[0] === "string") {
                     output.value = data.translated_text[0];
                     state.value = data.translation_state[0];
                     observedInput = JSON.stringify(input);
