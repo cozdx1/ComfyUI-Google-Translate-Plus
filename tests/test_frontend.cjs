@@ -100,6 +100,20 @@ class Node {
     assert.equal(state.value, '');
     assert.equal(node._googleTranslateError, 'Rate limited');
     assert.equal(node._googleTranslateBusy, false);
+    response = {ok: false, status: 429, json: async () => ({error: 'HTTP 429', code: 'rate_limit'})};
+    const previousOutput = output.value;
+    for (const language of ['en', 'ko', 'ja', 'zh-CN']) {
+        uiLocale = language;
+        settingListeners.get('Comfy.Locale.change')();
+        await button.callback();
+        assert.ok(node._googleTranslateError.includes('429'), 'rate limits must not appear as generic connection failures');
+        assert.ok(!button.name.includes('retry'), 'rate limits should not encourage rapid retries');
+        assert.equal(output.value, previousOutput, 'failed previews must preserve the last successful result');
+        assert.equal(widget('text').value, 'changed');
+        assert.equal(state.value, '');
+        assert.equal(node._googleTranslateBusy, false);
+    }
+    uiLocale = 'en';
     node.onConfigure();
     assert.equal(output.inputEl.readOnly, true);
     const queueSnapshot = Object.fromEntries(['text', 'source_language', 'target_language', 'protection'].map((name) => [name, widget(name).value]));

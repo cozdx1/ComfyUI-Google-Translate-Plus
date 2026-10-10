@@ -5,12 +5,15 @@ import re
 import threading
 import uuid
 from collections import OrderedDict
+from concurrent.futures import Future
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 MODES = ["Quotes + backticks", "Quotes only", "Backticks only", "None"]
 _cache = OrderedDict()
 _lock = threading.Lock()
+_inflight = {}
 
 
 class TranslationError(ValueError):
@@ -101,8 +104,13 @@ def google_translate(text, source, target):
     query = urlencode(dict(client="gtx", sl=source, tl=target, dt="t", q=text))
     request = Request("https://translate.googleapis.com/translate_a/single?" + query,
                       headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(request, timeout=25) as response:
-        payload = json.load(response)
+    try:
+        with urlopen(request, timeout=25) as response:
+            payload = json.load(response)
+    except HTTPError as error:
+        if error.code == 429:
+            raise TranslationError("rate_limit", "Google Translate temporarily rejected the request (HTTP 429: Too Many Requests). Wait before trying again; the reset time is unknown.") from None
+        raise
     if not isinstance(payload, list) or not payload or not isinstance(payload[0], list):
         raise TranslationError("response", "Google returned an unexpected translation response.")
     result = ''.join(part[0] for part in payload[0] if part and isinstance(part[0], str))
@@ -112,17 +120,43 @@ def google_translate(text, source, target):
 
 
 def translate(text, source, target, protection=MODES[0], transport=None):
+    if transport is not None:
+        return _translate(text, source, target, protection, transport)
+    key = signature(text, source, target, protection)
+    with _lock:
+        if key in _cache:
+            _cache.move_to_end(key)
+            return _cache[key]
+        pending = _inflight.get(key)
+        owner = pending is None
+        if owner:
+            pending = _inflight[key] = Future()
+    # Preview and Queue share one request when their inputs match.
+    if not owner:
+        return pending.result()
+    try:
+        result = _translate(text, source, target, protection, google_translate)
+        with _lock:
+            _cache[key] = result
+            _cache.move_to_end(key)
+            while len(_cache) > 128:
+                _cache.popitem(last=False)
+        pending.set_result(result)
+        return result
+    except BaseException as error:
+        pending.set_exception(error)
+        raise
+    finally:
+        with _lock:
+            _inflight.pop(key, None)
+
+
+def _translate(text, source, target, protection, transport):
     if len(text) > 5000:
         raise TranslationError("limit", "Translate up to 5,000 characters at once. The source text is not truncated.")
     spans = protected_spans(text, protection)
     if not text.strip():
         return text
-    key = signature(text, source, target, protection)
-    if transport is None:
-        with _lock:
-            if key in _cache:
-                _cache.move_to_end(key)
-                return _cache[key]
     nonce = uuid.uuid4().hex[:12].upper()
     pieces, literals, outside, cursor = [], [], [], 0
     for index, (start, end, literal) in enumerate(spans):
@@ -136,7 +170,7 @@ def translate(text, source, target, protection=MODES[0], transport=None):
     # A protected-only input needs no network request.
     if spans and not ''.join(outside).strip():
         return text
-    result = (transport or google_translate)(''.join(pieces), source, target)
+    result = transport(''.join(pieces), source, target)
     replacements = {}
     for token, literal in literals:
         pattern = re.compile(re.escape(token), re.IGNORECASE)
@@ -147,10 +181,4 @@ def translate(text, source, target, protection=MODES[0], transport=None):
         # One substitution pass: restored user text is never interpreted as a marker.
         pattern = re.compile('|'.join(re.escape(t) for t, _ in literals), re.IGNORECASE)
         result = pattern.sub(lambda match: replacements[match.group().lower()], result)
-    if transport is None:
-        with _lock:
-            _cache[key] = result
-            _cache.move_to_end(key)
-            while len(_cache) > 128:
-                _cache.popitem(last=False)
     return result

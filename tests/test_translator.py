@@ -6,6 +6,9 @@ import re
 import sys
 import types
 import unittest
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
+from urllib.error import HTTPError
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -94,6 +97,58 @@ class ProtectionTests(unittest.TestCase):
             self.assertEqual(network.call_count, 1)
 
 
+class RequestTests(unittest.TestCase):
+    def setUp(self):
+        translator._cache.clear()
+
+    def test_429_explains_rate_limit_without_leaking_prompt(self):
+        error = HTTPError('https://example.test/?q=private-prompt', 429, 'Too Many Requests', {}, None)
+        with patch.object(translator, 'urlopen', side_effect=error) as network:
+            with self.assertRaises(translator.TranslationError) as caught:
+                translator.translate('private-prompt', 'ko', 'en')
+        self.assertEqual(caught.exception.code, 'rate_limit')
+        self.assertIn('HTTP 429', str(caught.exception))
+        self.assertNotIn('private-prompt', str(caught.exception))
+        self.assertEqual(network.call_count, 1, 'rate limits must not trigger automatic retries')
+        self.assertFalse(translator._cache, 'failed requests must not become cached results')
+
+    def test_concurrent_requests_share_success_and_failure(self):
+        for fail in (False, True):
+            with self.subTest(fail=fail):
+                translator._cache.clear()
+                started, waiting, release = threading.Event(), threading.Event(), threading.Event()
+                class ObservedFuture(Future):
+                    def result(self, *args, **kwargs):
+                        waiting.set()
+                        return super().result(*args, **kwargs)
+                def network(*args):
+                    started.set()
+                    if not release.wait(5):
+                        raise AssertionError('request not released')
+                    if fail:
+                        raise translator.TranslationError('rate_limit', 'HTTP 429')
+                    return 'Hello'
+                with patch.object(translator, 'google_translate', side_effect=network) as request, patch.object(translator, 'Future', ObservedFuture), ThreadPoolExecutor(max_workers=2) as pool:
+                    try:
+                        first = pool.submit(translator.translate, '안녕', 'ko', 'en')
+                        self.assertTrue(started.wait(5))
+                        second = pool.submit(translator.translate, '안녕', 'ko', 'en')
+                        self.assertTrue(waiting.wait(5), 'the second caller must join the existing request')
+                        self.assertEqual(request.call_count, 1)
+                    finally:
+                        release.set()
+                    for future in (first, second):
+                        if fail:
+                            with self.assertRaises(translator.TranslationError):
+                                future.result(timeout=5)
+                        else:
+                            self.assertEqual(future.result(timeout=5), 'Hello')
+                self.assertFalse(translator._inflight, 'completed or failed requests must release waiting callers')
+                with patch.object(translator, 'google_translate', return_value='Recovered') as retry:
+                    self.assertEqual(translator.translate('안녕', 'ko', 'en'), 'Recovered' if fail else 'Hello')
+                    self.assertEqual(retry.call_count, 1 if fail else 0)
+
+
 class NodeTests(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls):
@@ -113,6 +168,22 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
             result = await module.GoogleTranslatePlus().output_translation(*args)
             self.assertEqual(result['result'], ('Hello',))
             self.assertEqual(result['ui']['translated_text'], ['Hello'])
+
+    async def test_rate_limit_is_clear_for_preview_and_queue(self):
+        module = self.module
+        error = module.translator.TranslationError('rate_limit', 'Google Translate rejected the request (HTTP 429).')
+        args = [module._auto, module._defaults['en'], 'Quotes + backticks', '안녕', '', '']
+        class Request:
+            async def json(self):
+                return dict(text='안녕', source_language=module._auto, target_language=module._defaults['en'], protection='Quotes + backticks')
+        with patch.object(module, 'translate', side_effect=error):
+            with self.assertRaisesRegex(ValueError, 'HTTP 429'):
+                await module.GoogleTranslatePlus().output_translation(*args)
+            response = await module.translate_manual(Request())
+        self.assertEqual(response.status, 429)
+        data = json.loads(response.text)
+        self.assertEqual(data['code'], 'rate_limit')
+        self.assertNotIn('text', data, 'a failure must never be presented as translated text')
 
     async def test_queue_translates_without_preview(self):
         module = self.module

@@ -71,7 +71,8 @@ async def translate_manual(request):
                             "output": signature(result, "", "", "")})
         return web.json_response({"text": result, "state": state})
     except (KeyError, ValueError, TypeError) as error:
-        return web.json_response({"error": str(error), "code": getattr(error, "code", "")}, status=400)
+        code = getattr(error, "code", "")
+        return web.json_response({"error": str(error), "code": code}, status=429 if code == "rate_limit" else 400)
     except Exception as error:
         # Do not log prompt text or request URLs (they contain user text).
         logging.warning("Google Translate Plus request failed (%s)", type(error).__name__)

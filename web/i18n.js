@@ -1,5 +1,6 @@
 export const messages = {
     en: {
+        limited: "Translate · Rate limited", rate_limit: "Google Translate temporarily rejected the request (HTTP 429). Wait before trying again; the reset time is unknown.",
         translate: "Translate", busy: "Translating…", done: "Translate · Done", changed: "Translate · Changed", error: "Translate · Error (retry)",
         placeholder: "Translation result. Queue translates automatically; Translate previews it.",
         readonly: "Read-only translation result.", auto: "Auto-detect",
@@ -12,6 +13,7 @@ export const messages = {
         marker: "Google changed a protected-text marker. The result was rejected. Try again.", response: "Google returned an invalid or empty translation. Try again.", connection: "Could not connect to Google Translate. Try again later.",
     },
     ko: {
+        limited: "번역 · 요청 제한", rate_limit: "구글 번역이 일시적으로 요청을 거절했습니다(HTTP 429). 잠시 기다린 후 다시 시도해 주세요. 제한 해제 시간은 알 수 없습니다.",
         translate: "번역", busy: "번역 중…", done: "번역 · 완료", changed: "번역 · 변경됨", error: "번역 · 오류 (재시도)",
         placeholder: "번역 결과입니다. Queue에서 자동 번역하며, 번역 버튼으로 미리 확인할 수 있습니다.",
         readonly: "읽기 전용 번역 결과입니다.", auto: "자동 감지",
@@ -24,6 +26,7 @@ export const messages = {
         marker: "구글 번역이 보존 표시를 변경하여 결과를 적용하지 않았습니다. 다시 시도해 주세요.", response: "구글 번역에서 올바른 결과를 반환하지 않았습니다. 다시 시도해 주세요.", connection: "구글 번역에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
     },
     ja: {
+        limited: "翻訳 · リクエスト制限", rate_limit: "Google翻訳が一時的にリクエストを拒否しました（HTTP 429）。しばらく待ってから再試行してください。制限の解除時刻は不明です。",
         translate: "翻訳", busy: "翻訳中…", done: "翻訳 · 完了", changed: "翻訳 · 変更あり", error: "翻訳 · エラー（再試行）",
         placeholder: "翻訳結果です。Queueで自動翻訳し、翻訳ボタンでプレビューできます。",
         readonly: "読み取り専用の翻訳結果です。", auto: "自動検出",
@@ -36,6 +39,7 @@ export const messages = {
         marker: "保護用の印が変更されたため結果を適用しませんでした。再試行してください。", response: "正しい翻訳結果が返されませんでした。再試行してください。", connection: "Google翻訳に接続できませんでした。後でもう一度お試しください。",
     },
     zh: {
+        limited: "翻译 · 请求受限", rate_limit: "Google翻译暂时拒绝了请求（HTTP 429）。请等待一段时间后重试。限制解除时间未知。",
         translate: "翻译", busy: "翻译中…", done: "翻译 · 完成", changed: "翻译 · 已更改", error: "翻译 · 错误（重试）",
         placeholder: "翻译结果。Queue自动翻译，翻译按钮用于预览。",
         readonly: "只读翻译结果。", auto: "自动检测",

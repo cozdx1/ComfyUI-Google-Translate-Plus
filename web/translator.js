@@ -62,7 +62,11 @@ app.registerExtension({
                         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
                     });
                     const data = await response.json();
-                    if (!response.ok) throw new Error(strings()[data.code] || data.error || `HTTP ${response.status}`);
+                    if (!response.ok) {
+                        const error = new Error(strings()[data.code] || data.error || `HTTP ${response.status}`);
+                        error.code = data.code;
+                        throw error;
+                    }
                     if (JSON.stringify(input) !== JSON.stringify(snapshot())) {
                         status = "changed";
                         button.name = strings()[status];
@@ -76,7 +80,7 @@ app.registerExtension({
                     button.name = strings()[status];
                 } catch (error) {
                     this._googleTranslateError = String(error.message || error);
-                    status = "error";
+                    status = error.code === "rate_limit" ? "limited" : "error";
                     button.name = strings()[status];
                     app.extensionManager?.toast?.add({severity: "error", summary: "Google Translate Plus", detail: this._googleTranslateError, life: 12000});
                     console.warn("Google Translate Plus:", this._googleTranslateError);
